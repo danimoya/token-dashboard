@@ -8,3 +8,7 @@ node_modules/
 .superpowers/
 .claude/
 docs/superpowers/
+
+# HeliosDB REPL history / scratch issue drafts
+.heliosdb_history
+.github-issue-*.md
