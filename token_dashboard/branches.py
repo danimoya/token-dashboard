@@ -12,11 +12,23 @@ branch DDL — the rest of the dashboard keeps working.
 """
 from __future__ import annotations
 
+import re
 import time
 from datetime import datetime, timezone
 from typing import Optional
 
 from . import helios_writer as hw
+
+# HeliosDB's CREATE BRANCH / ON BRANCH clauses take the branch name as a SQL
+# string literal and do NOT support bound parameters for it, so the name is
+# interpolated. It is user-reachable (POST /api/branches/snapshot {name},
+# GET /api/branches/overview?branch=), so it must be whitelisted to a strict
+# identifier charset before it ever touches SQL — anything else is injection.
+_BRANCH_NAME_RE = re.compile(r"[A-Za-z0-9_\-]{1,64}\Z")
+
+
+def _is_valid_branch_name(name: str) -> bool:
+    return isinstance(name, str) and bool(_BRANCH_NAME_RE.match(name))
 
 
 def daily_branch_name(dt: Optional[datetime] = None) -> str:
@@ -26,6 +38,9 @@ def daily_branch_name(dt: Optional[datetime] = None) -> str:
 
 def create_snapshot(name: Optional[str] = None) -> dict:
     name = name or daily_branch_name()
+    if not _is_valid_branch_name(name):
+        return {"ok": False, "error": "invalid branch name "
+                "(allowed: letters, digits, '_', '-'; max 64 chars)"}
     conn = hw.get_conn()
     if conn is None:
         return {"ok": False, "error": "helios not configured"}
@@ -74,6 +89,8 @@ def list_snapshots() -> list:
 
 def overview_as_of(branch: str) -> dict:
     """Re-run the headline overview on a snapshot branch."""
+    if not _is_valid_branch_name(branch):
+        return {"error": "invalid branch name"}
     conn = hw.get_conn()
     if conn is None:
         return {"error": "helios not configured"}
