@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
-"""Run inside the dashboard container with TD_PRIMARY_STORE=helios set.
+"""Compare SQLite vs HeliosDB read paths. Run with TD_PRIMARY_STORE=helios set.
 
 Compares the headline metrics produced by db.py (SQLite) and db_helios.py
 (HeliosDB) for the same query. Pass when the relative difference is within
-tolerance for each metric. Used as the gate for flipping the production
-dispatcher to helios.
+tolerance for each metric. Used as the gate for flipping the read dispatcher
+to helios. Reads the SQLite cache path from TOKEN_DASHBOARD_DB and the target
+DSN from HELIOSDB_DSN.
 """
 import os
 import sys
 import time
 
-sys.path.insert(0, "/app")
-sys.path.insert(0, "/sources/token-dashboard")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from token_dashboard import db, db_helios
 
-DB_PATH = os.environ.get("TOKEN_DASHBOARD_DB", "/data/cache/token-dashboard.db")
+DB_PATH = os.environ.get("TOKEN_DASHBOARD_DB",
+                         os.path.expanduser("~/.claude/token-dashboard.db"))
 
 
 def _approx(a, b, rel=0.01):

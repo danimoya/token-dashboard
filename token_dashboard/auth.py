@@ -1,19 +1,18 @@
 """In-app session auth for the dashboard.
 
-Replaces NPM's HTTP Basic Auth (browser popup) with an integrated
-login form rendered inside the app. The dashboard's Python server
-checks a signed session cookie on every request; missing/invalid
-cookies get redirected to /login.
+Renders an integrated login form inside the app instead of relying on a
+reverse proxy for access control. The dashboard's Python server checks a
+signed session cookie on every request; missing/invalid cookies get
+redirected to /login.
 
 Configuration (env, all required for auth to be enabled):
   TD_AUTH_USER=admin
-  TD_AUTH_PASSWORD=<plaintext password — same as the NPM Basic Auth one>
+  TD_AUTH_PASSWORD=<plaintext password>
   TD_AUTH_SECRET=<random 32-byte hex string for signing cookies>
 
 If any of these are missing, the server runs in open mode (no auth) —
-useful for local dev. NPM's Basic Auth stays in place when this module
-isn't configured, so the production dashboard isn't accidentally
-exposed.
+fine for a local-only bind (127.0.0.1). Put a reverse proxy or firewall
+in front of the dashboard if you expose it beyond localhost.
 
 Cookie shape:
   td_session=<base64(payload)>.<hex(hmac_sha256(secret, payload))>
@@ -116,9 +115,8 @@ def parse_cookie_header(header_value: Optional[str]) -> dict:
 
 def cookie_set_header(value: str) -> str:
     """Build the Set-Cookie header. Lax samesite is fine — login is
-    same-origin. Secure flag honours the X-Forwarded-Proto header at the
-    NPM layer; we set it unconditionally since the dashboard only runs
-    behind HTTPS."""
+    same-origin. The Secure flag is set unconditionally; serve the
+    dashboard over HTTPS (directly or behind a TLS-terminating proxy)."""
     return (
         f"{COOKIE_NAME}={value}; "
         f"Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age={COOKIE_MAX_AGE}"
